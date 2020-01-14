@@ -8,6 +8,7 @@ import joblib
 from . import dispatcher
 
 TRAINING_DATA = os.environ.get('TRAINING_DATA')
+TEST_DATA = os.environ.get('TEST_DATA')
 FOLD = int(os.environ.get('FOLD')) # Fold must be an int
 MODEL = os.environ.get('MODEL')
 
@@ -22,9 +23,10 @@ FOLD_MAPPING = {
 
 if __name__ == '__main__':
     df = pd.read_csv(TRAINING_DATA)
+    df_test = pd.read_csv(TEST_DATA)
     # create train and validation sets from dictionary
-    train_df = df[df.kfold.isin(FOLD_MAPPING.get(FOLD))]
-    valid_df = df[df.kfold==FOLD]
+    train_df = df[df.kfold.isin(FOLD_MAPPING.get(FOLD))].reset_index(drop = True)
+    valid_df = df[df.kfold==FOLD].reset_index(drop = True)
 
     # get target variables for training and validation
     ytrain = train_df.target.values
@@ -38,16 +40,13 @@ if __name__ == '__main__':
     valid_df = valid_df[train_df.columns]
 
     #simple encoding of the variables
-    label_encoders = []
+    label_encoders = {}
     for col in train_df.columns:
         lbl = preprocessing.LabelEncoder()
-        lbl.fit(train_df[col].values.tolist() + \
-            valid_df[col].values.tolist())
-        train_df.loc[:,col] = lbl.transform(\
-            train_df[col].values.tolist())
-        valid_df.loc[:,col] = lbl.transform(\
-            valid_df[col].values.tolist())
-        label_encoders.append([col,lbl])
+        lbl.fit(train_df[col].values.tolist() + valid_df[col].values.tolist() + df_test[col].values.tolist())
+        train_df.loc[:,col] = lbl.transform(train_df[col].values.tolist())
+        valid_df.loc[:,col] = lbl.transform(valid_df[col].values.tolist())
+        label_encoders[col] = lbl
     
     # Initialize model
     clf = dispatcher.MODELS[MODEL]
